@@ -113,8 +113,9 @@ use std::str::{self, FromStr};
 
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use data_encoding::BASE64URL_NOPAD;
-use serde::de::{self, DeserializeOwned};
+use serde::de::{self, DeserializeOwned, Error as SerdeError};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_custom::numeric_type::{numeric_type, TryParse};
 
 mod helpers;
 pub use crate::helpers::*;
@@ -720,9 +721,11 @@ impl<'de> Deserialize<'de> for Timestamp {
     where
         D: Deserializer<'de>,
     {
-        let timestamp = i64::deserialize(deserializer)?;
+        let TryParse::Parsed(timestamp) = numeric_type(deserializer)? else {
+            return Err(SerdeError::custom("Invalid timestamp"));
+        };
         Ok(Timestamp(DateTime::<Utc>::from_utc(
-            NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap(),
+            NaiveDateTime::from_timestamp_opt(timestamp as i64, 0).unwrap(),
             Utc,
         )))
     }
